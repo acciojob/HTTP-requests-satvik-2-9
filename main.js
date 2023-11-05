@@ -1,22 +1,38 @@
-const fs = require('fs');
-const http = require('http');
 const https = require('https');
+const http = require('http');
+const fs = require('fs');
+const url = require('url');
 
+// Get the list of URLs from command-line arguments
 const urls = process.argv.slice(2);
 
-urls.forEach((url) => {
-  const protocol = url.startsWith('https') ? https : http;
-  const options = { method: 'GET', headers: { 'User-Agent': 'Mozilla/5.0' } };
+if (urls.length === 0) {
+  console.error('Error: Missing URL(s)');
+  process.exit(1);
+}
 
-  protocol.get(url, options, (res) => {
+urls.forEach((currentUrl) => {
+  const parsedUrl = url.parse(currentUrl);
+  const hostname = parsedUrl.hostname;
+  const protocol = parsedUrl.protocol;
+
+  let httpModule = https;
+
+  if (protocol === 'http:') {
+    httpModule = http;
+  }
+
+  httpModule.get(currentUrl, (response) => {
     let data = '';
-    res.on('data', (chunk) => {
+
+    response.on('data', (chunk) => {
       data += chunk;
     });
-    res.on('end', () => {
-      // TODO: Write the data to a file with the hostname as the filename
+
+    response.on('end', () => {
+      fs.writeFileSync(`${hostname}.txt`, data);
     });
   }).on('error', (err) => {
-    console.error(`Error downloading ${url}: ${err}`);
+    console.error(`Error fetching data from ${currentUrl}: ${err.message}`);
   });
 });
